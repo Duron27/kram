@@ -9,17 +9,32 @@ add_executable(${myTargetApp})
 #-----------------------------------------------------
     
 if (BUILD_LINUX)
-    # Enable all warnings, and also enable f16c sims op (only x64 though)
+    # Enable all warnings
     target_compile_options(${myTargetApp} PRIVATE -W -Wall 
-        -mavx2 -mfma -mf16c 
         -fno-exceptions -fno-rtti
         -fdata-sections -ffunction-sections
     )
+    
+    # Architecture-specific optimizations
+    # Force detection if CMAKE_SYSTEM_PROCESSOR is not set
+    if (NOT CMAKE_SYSTEM_PROCESSOR OR CMAKE_SYSTEM_PROCESSOR STREQUAL "")
+        execute_process(COMMAND uname -m OUTPUT_VARIABLE CMAKE_SYSTEM_PROCESSOR OUTPUT_STRIP_TRAILING_WHITESPACE)
+    endif()
+    
+    if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
+        # Enable NEON for ARM64
+        target_compile_options(${myTargetApp} PRIVATE -march=armv8-a+simd)
+        target_compile_definitions(${myTargetApp} PRIVATE __ARM_NEON=1 __ARM_NEON__=1)
+    else()
+        # Enable AVX2/F16C for x86_64
+        target_compile_options(${myTargetApp} PRIVATE -mavx2 -mfma -mf16c)
+    endif()
 
-    # librt is for clock_gettime
+    # librt is for clock_gettime, pthread for threading
     target_link_libraries(${myTargetApp} PUBLIC 
         libkram 
-        rt)
+        rt
+        pthread)
 
 endif()
 
@@ -62,10 +77,19 @@ if (BUILD_MAC)
     )
 
     target_compile_options(${myTargetApp} PRIVATE -W -Wall
-        -mavx2 -mfma -mf16c 
         -fno-exceptions -fno-rtti
         -fdata-sections -ffunction-sections
     )
+    
+    # Architecture-specific optimizations
+    if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
+        # Enable NEON for ARM64 (Apple Silicon)
+        target_compile_options(${myTargetApp} PRIVATE -march=armv8-a+simd)
+        target_compile_definitions(${myTargetApp} PRIVATE __ARM_NEON=1 __ARM_NEON__=1)
+    else()
+        # Enable AVX2/F16C for x86_64
+        target_compile_options(${myTargetApp} PRIVATE -mavx2 -mfma -mf16c)
+    endif()
 
     # only turn on in Release in case this disables incremental linking
     if (CMAKE_BUILD_TYPE EQUAL "Release")

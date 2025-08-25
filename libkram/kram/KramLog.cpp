@@ -59,7 +59,7 @@ using mylock = std::unique_lock<mymutex>;
 
 using namespace STL_NAMESPACE;
 
-#if KRAM_WIN
+#if KRAM_WIN || KRAM_LINUX
 // https://stackoverflow.com/questions/18547251/when-i-use-strlcpy-function-in-c-the-compilor-give-me-an-error
 
 // '_cups_strlcat()' - Safely concatenate two strings.

@@ -87,7 +87,7 @@ bool endsWithExtension(const char* str, const string& substring);
 // https://stackoverflow.com/questions/874134/find-out-if-string-ends-with-another-string-in-c
 bool endsWith(const string& value, const string& ending);
 
-#if KRAM_WIN
+#if KRAM_WIN || KRAM_LINUX
 size_t strlcat(char* dst, const char* src, size_t size);
 size_t strlcpy(char* dst, const char* src, size_t size);
 #endif

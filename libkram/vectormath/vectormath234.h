@@ -149,7 +149,7 @@
 #endif // SIMD_NAMESPACE
 
 // only support avx2 and Neon, no avx-512 at first
-#if defined __ARM_NEON__
+#if defined(__ARM_NEON__) || defined(__ARM_NEON) || defined(__aarch64__) || defined(_M_ARM64)
 #define SIMD_SSE 0
 #define SIMD_AVX2 0
 #define SIMD_NEON 1

@@ -11,15 +11,17 @@
 //#include <synchapi.h>
 #endif
 
-#if KRAM_LINUX
+#if KRAM_LINUX || KRAM_ANDROID
 #include <linux/futex.h>
+#include <sys/syscall.h>
+#include <unistd.h>
 #endif
 
 // Remove this, and move out all the threading prims
 #include "TaskSystem.h"
 
-// Android is missing defines
-#if KRAM_ANDROID
+// Android and some Linux systems are missing defines
+#if KRAM_ANDROID || KRAM_LINUX
 #ifndef SYS_futex
 # define SYS_futex __NR_futex
 #endif

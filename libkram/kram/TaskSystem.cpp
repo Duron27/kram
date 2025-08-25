@@ -1,4 +1,5 @@
 #include "TaskSystem.h"
+#include "KramLog.h"  // for strlcpy on Linux/Windows
 
 // Stop using this, so can have unified kram lib
 //#if KRAM_MAC

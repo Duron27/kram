@@ -207,11 +207,21 @@ if (BUILD_LINUX)
     )
     
     # Architecture-specific optimizations
+    # Force detection if CMAKE_SYSTEM_PROCESSOR is not set
+    if (NOT CMAKE_SYSTEM_PROCESSOR OR CMAKE_SYSTEM_PROCESSOR STREQUAL "")
+        execute_process(COMMAND uname -m OUTPUT_VARIABLE CMAKE_SYSTEM_PROCESSOR OUTPUT_STRIP_TRAILING_WHITESPACE)
+    endif()
+    
+    message(STATUS "Detected processor: ${CMAKE_SYSTEM_PROCESSOR}")
+    
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
-        # Enable NEON for ARM64
+        # Enable NEON for ARM64 - NEON is mandatory on ARMv8
+        message(STATUS "Configuring for ARM64 with NEON")
         target_compile_options(${myTargetLib} PRIVATE -march=armv8-a+simd)
+        target_compile_definitions(${myTargetLib} PRIVATE __ARM_NEON=1 __ARM_NEON__=1)
     else()
         # Enable AVX2/F16C for x86_64
+        message(STATUS "Configuring for x86_64 with AVX2")
         target_compile_options(${myTargetLib} PRIVATE -mavx2 -mfma -mf16c)
     endif()
 
@@ -237,8 +247,9 @@ if (BUILD_MAC)
     
     # Architecture-specific optimizations
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
-        # Enable NEON for ARM64 (Apple Silicon)
+        # Enable NEON for ARM64 (Apple Silicon) - NEON is mandatory on ARMv8
         target_compile_options(${myTargetLib} PRIVATE -march=armv8-a+simd)
+        target_compile_definitions(${myTargetLib} PRIVATE __ARM_NEON=1 __ARM_NEON__=1)
     else()
         # Enable AVX2/F16C for x86_64
         target_compile_options(${myTargetLib} PRIVATE -mavx2 -mfma -mf16c)
