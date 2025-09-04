@@ -1073,6 +1073,8 @@ void ImageInfo::initWithArgs(const ImageInfoArgs& args)
     if (isHeight)
         isNormal = true;
 
+    textureOrientation = args.textureOrientation;
+
     // Note: difference between input srgb and output srgb, but it's mingled
     // here a bit
 

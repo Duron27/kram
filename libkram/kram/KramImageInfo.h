@@ -35,6 +35,12 @@ enum TexEncoder {
     kTexEncoderAstcenc,
 };
 
+// Texture coordinate orientation
+enum TextureOrientation {
+    kTextureOrientationDirectX,  // Top-left origin (S=r,T=d) - DirectX/Vulkan/Metal
+    kTextureOrientationOpenGL    // Bottom-left origin (S=r,T=u) - OpenGL
+};
+
 // Fill this out from CLI, and hand to ImageInfo::init
 class ImageInfoArgs {
 public:
@@ -95,8 +101,7 @@ public:
 
     int32_t sdfThreshold = 120;
     
-    // Flip image vertically (for DirectX -> OpenGL coordinate system conversion)
-    bool doFlip = false;
+    TextureOrientation textureOrientation = kTextureOrientationDirectX;
 };
 
 // preset data that contains all inputs about the encoding
@@ -181,6 +186,8 @@ public:
     bool isHeight = false;
     bool isWrap = false;
     float heightScale = 1.0f;
+
+    TextureOrientation textureOrientation = kTextureOrientationDirectX;
 
     int32_t quality = 49;
 

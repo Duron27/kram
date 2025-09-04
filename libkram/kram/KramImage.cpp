@@ -1479,6 +1479,13 @@ void KramEncoder::addBaseProps(const ImageInfo& info, KTXImage& dstImage) const
 {
     dstImage.addFormatProps();
 
+    // Set KTXorientation metadata: S=r,T=u for OpenGL, S=r,T=d for DirectX/Vulkan/Metal
+    if (info.textureOrientation == kTextureOrientationOpenGL) {
+        dstImage.addProp("KTXorientation", "S=r,T=u");
+    } else {
+        dstImage.addProp("KTXorientation", "S=r,T=d");
+    }
+
     // TODO: caller should really set post swizzle
     string postSwizzleText;
     if (info.swizzleText == "gggr")

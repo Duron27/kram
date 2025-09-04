@@ -2748,7 +2748,11 @@ static int32_t kramAppEncode(vector<const char*>& args)
             isGray = true;
         }
         else if (isStringEqual(word, "-flip")) {
-            infoArgs.doFlip = true;
+            // Note: -flip currently both flips the pixels AND sets OpenGL orientation metadata.
+            // This coupling assumes flipped pixels are intended for OpenGL use.
+            // TODO: In the future, these might need to be separate options if use cases emerge
+            // where pixel flipping and orientation metadata need independent control.
+            infoArgs.textureOrientation = kTextureOrientationOpenGL;
         }
 
         // mip setting
@@ -3156,8 +3160,7 @@ static int32_t kramAppEncode(vector<const char*>& args)
         success = SetupSourceImage(srcFilename, srcImage, isPremulRgb, isGray);
     }
     
-    // Apply vertical flip if requested (for DirectX -> OpenGL coordinate system conversion)
-    if (success && infoArgs.doFlip) {
+    if (success && infoArgs.textureOrientation == kTextureOrientationOpenGL) {
         srcImage.flipVertical();
     }
 
