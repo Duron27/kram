@@ -21,7 +21,7 @@
 #include <mutex>
 
 #if KRAM_WIN
-#include <intrin.h> // for AddressOfReturnAdress, ReturnAddress
+#include <intrin.h> // for AddressOfReturnAddress, ReturnAddress
 
 #ifndef WIN32_LEAN_AND_MEAN
     #define WIN32_LEAN_AND_MEAN
@@ -149,7 +149,7 @@ public:
 
     bool getAddressInfo(const void* address, string& symbolName, string& filename, uint32_t& line)
     {
-        string.clear();
+        symbolName.clear();
         filename.clear();
         line = 0;
 
@@ -162,7 +162,7 @@ public:
         SYMBOL_INFO& symbol = *(SYMBOL_INFO*)buffer;
         symbol.SizeOfStruct = sizeof(SYMBOL_INFO);
         symbol.MaxNameLen = MAX_SYM_NAME;
-        SymFromAddr(process, (ULONG64)address, &displacement, &symbol);
+        SymFromAddr(m_process, (ULONG64)address, &displacement, &symbol);
         symbolName = symbol.Name;
 
         // all demangle ops are single-threaded, so run this under log mutex
@@ -261,7 +261,7 @@ private:
         if (cppStart) {
             // This allocates memory using malloc
             // Must have just the name, not all the other cruft around it
-            // ObjC is not manged.
+            // ObjC is not mangled.
             char* symbol = abi::__cxa_demangle(symbolName.c_str(), nullptr, &size, &status);
             if (status == 0) {
                 symbolName = symbol;
@@ -346,8 +346,8 @@ public:
 class AddressHelper {
 public:
     bool isStackTraceSupported() const { return false; }
-    bool getAddressInfo(const void* address, string& symbolName, string& filename, uint32_t& line) { return false; }
-    void getStackInfo(string& stackInfo, uint32_t skipStackLevels) {}
+    bool getAddressInfo([[maybe_unused]] const void* address, [[maybe_unused]] string& symbolName, [[maybe_unused]] string& filename, [[maybe_unused]] uint32_t& line) { return false; }
+    void getStackInfo([[maybe_unused]] string& stackInfo, [[maybe_unused]] uint32_t skipStackLevels) {}
 };
 
 #endif
@@ -591,7 +591,7 @@ struct LogMessage {
     int32_t line;
     const char* func;
 
-    // embelished
+    // embellished
     const char* threadName;
     double timestamp;
 
@@ -611,7 +611,7 @@ enum DebuggerType {
 
 constexpr const uint32_t kMaxTokens = 32;
 
-static const char* getFormatTokens(char tokens[kMaxTokens], const LogMessage& msg, DebuggerType type)
+static const char* getFormatTokens(char tokens[kMaxTokens], [[maybe_unused]] const LogMessage& msg, [[maybe_unused]] DebuggerType type)
 {
 #if KRAM_WIN
     if (msg.logLevel <= LogLevelInfo) {
@@ -885,7 +885,7 @@ static int32_t logMessageImpl(const LogMessage& msg)
         fflush(fp);
     }
 #elif KRAM_ANDROID
-    AndroidLogLevel osLogLevel = ANDROID_LOG_ERROR;
+    android_LogPriority osLogLevel = ANDROID_LOG_ERROR;
     switch (msg.logLevel) {
         case LogLevelDebug:
             osLogLevel = ANDROID_LOG_DEBUG;
@@ -894,7 +894,7 @@ static int32_t logMessageImpl(const LogMessage& msg)
             osLogLevel = ANDROID_LOG_INFO;
             break;
         case LogLevelWarning:
-            osLogLevel = ANDROID_LOG_WARNING;
+            osLogLevel = ANDROID_LOG_WARN;
             break;
         case LogLevelError:
             osLogLevel = ANDROID_LOG_ERROR;
@@ -921,9 +921,9 @@ static int32_t logMessageImpl(const LogMessage& msg)
 
         // os_log reports this as the callsite, and doesn't jump to another file
         // or if the dso is even passed from this file, the file/line aren't correct.
-        // So os_log_impl is grabbing return address whithin the function that can't be set.
+        // So os_log_impl is grabbing return address within the function that can't be set.
         // So have to inject the NSLog, os_log, syslog calls directly into code, but that
-        // not feasible.   This will at least color the mesages.
+        // not feasible.   This will at least color the messages.
 
         auto osLogLevel = OS_LOG_TYPE_INFO;
         switch (msg.logLevel) {
