@@ -1,6 +1,7 @@
-#-----------------------------------------------------
+cmake_minimum_required(VERSION 3.19.1)
 
-# TODO: hook these up to added code below, and pass to as command line settings
+#-----------------------------------------------------
+# Encoder options
 option(ATE "Compile ATE Encoder" ON)
 option(ETCENC "Compile ETC2Comp Encoder" ON)
 option(SQUISH "Compile Squish Encoder" ON)
@@ -10,7 +11,7 @@ option(COMP "Compile Compressonator Encoder" ON)
 
 option(EASTL "Compile EASTL" OFF)
 
-# convert ON to 1, UGH
+# Convert ON to 1
 set(COMPILE_ATE 0)
 set(COMPILE_BCENC 0)
 set(COMPILE_ETCENC 0)
@@ -43,9 +44,7 @@ if (COMP)
 endif()
 
 #-----------------------------------------------------
-# stl used
-
-# replaces parts of std/stl with eastl
+# STL used
 set(COMPILE_EASTL 0)
 if (EASTL)
     set(COMPILE_EASTL 1)
@@ -53,13 +52,14 @@ endif()
 
 #-----------------------------------------------------
 # libkram
-
-# these are names, but app will be renamed to kram at the end
 set(myTargetLib libkram)
 
-# **** This will create libkram.a or .so or kram.lib depending on platform.
-# can also use OBJECT or SHARED, object cuts compile time
-add_library(${myTargetLib} STATIC)
+# Build as shared library for Android, static for others
+if (ANDROID)
+    add_library(${myTargetLib} SHARED)
+else()
+    add_library(${myTargetLib} STATIC)
+endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     set(DEBUG 1)
@@ -67,113 +67,75 @@ endif()
 
 if (DEBUG)
     set_target_properties(${myTargetLib} PROPERTIES
-        # rename lib to kramd, libkramd will then be the output or kramd.lib
         OUTPUT_NAME kramd
     )
 else()
     set_target_properties(${myTargetLib} PROPERTIES
-        # rename lib to kram, libkram will then be the output
         OUTPUT_NAME kram
     )
 endif()
 
-# add_library doesn't establish a project, so still pointing at root CMake
-#set(SOURCE_DIR ${PROJECT_SOURCE_DIR}/libkram)
-#set(SOURCE_DIR ${CMAKE_SOURCE_DIR}/libkram)
 set(SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
-
-#set(INCLUDE_DIR ${CMAKE_SOURCE_DIR}/libkram)
 set(INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 file(GLOB_RECURSE libSources CONFIGURE_DEPENDS 
-	"${SOURCE_DIR}/astc-encoder/*.cpp"
-	"${SOURCE_DIR}/astc-encoder/*.h"
-
-    # ATE is Apple specific to macOS)
+    "${SOURCE_DIR}/astc-encoder/*.cpp"
+    "${SOURCE_DIR}/astc-encoder/*.h"
     "${SOURCE_DIR}/ate/ateencoder.mm"
     "${SOURCE_DIR}/ate/ateencoder.h"
-
     "${SOURCE_DIR}/bc7enc/*.cpp"
     "${SOURCE_DIR}/bc7enc/*.h"
-
     "${SOURCE_DIR}/etc2comp/*.cpp"
     "${SOURCE_DIR}/etc2comp/*.h"
-
     "${SOURCE_DIR}/fmt/*.cpp"
     "${SOURCE_DIR}/fmt/*.h"
-
     "${SOURCE_DIR}/heman/hedistance.cpp"
     "${SOURCE_DIR}/heman/hedistance.h"
-
     "${SOURCE_DIR}/kram/*.pch"
     "${SOURCE_DIR}/kram/*.cpp"
     "${SOURCE_DIR}/kram/*.h"
-
-    # other libraries
     "${SOURCE_DIR}/eastl/*.cpp"
     "${SOURCE_DIR}/eastl/*.h"
-    
     "${SOURCE_DIR}/lodepng/lodepng.cpp"
     "${SOURCE_DIR}/lodepng/lodepng.h"
-
     "${SOURCE_DIR}/squish/*.cpp"
     "${SOURCE_DIR}/squish/*.h"
-
     "${SOURCE_DIR}/compressonator/bc6h/*.cpp"
     "${SOURCE_DIR}/compressonator/bc6h/*.h"
-
     "${SOURCE_DIR}/tmpfileplus/tmpfileplus.cpp"
     "${SOURCE_DIR}/tmpfileplus/tmpfileplus.h"
-     
     "${SOURCE_DIR}/vectormath/*.h"
     "${SOURCE_DIR}/vectormath/*.cpp"
-    
-    # partial zstd decode-only unity file
-    # cd zstd/build/single_file_libs
-    # ./combine.sh -r ../../lib -o zstddeclib.c zstddeclib-in.c
-    # "${SOURCE_DIR}/zstd/zstddeclib.cpp"
-    
-    # full zstd encode/decode unity file
-    # cd zstd/build/single_file_libs
-    # ./combine.sh -r ../../lib -o zstd.c zstd-in.c
     "${SOURCE_DIR}/zstd/zstd.h"
     "${SOURCE_DIR}/zstd/zstd.cpp"
-   
     "${SOURCE_DIR}/miniz/miniz.h"
     "${SOURCE_DIR}/miniz/miniz.cpp"
 )
 
-# no objc on win or linux
-if (BUILD_WIN OR BUILD_LINUX)
+# No objc on Win, Linux, or Android
+if (BUILD_WIN OR BUILD_LINUX OR ANDROID)
     list(FILTER libSources EXCLUDE REGEX ".*ateencoder.mm$")
     list(FILTER libSources EXCLUDE REGEX ".*ateencoder.h$")
 endif()
 
-# remove files not used
+# Remove files not used
 list(FILTER libSources EXCLUDE REGEX ".*test.cpp$")
 list(FILTER libSources EXCLUDE REGEX ".squishgen.cpp$")
 list(FILTER libSources EXCLUDE REGEX ".Etc.cpp$")
 list(FILTER libSources EXCLUDE REGEX ".Etc.h$")
-
-# wish I could still see these in project, not just strip them out
 list(FILTER libSources EXCLUDE REGEX ".astcenccli_image_load_store.cpp$")
 list(FILTER libSources EXCLUDE REGEX ".astcenccli_error_metrics.cpp$")
 list(FILTER libSources EXCLUDE REGEX ".astcenccli_platform_dependents.cpp$")
 list(FILTER libSources EXCLUDE REGEX ".astcenccli_toplevel_help.cpp$")
 list(FILTER libSources EXCLUDE REGEX ".astcenccli_toplevel.cpp$")
-
-# this EASTL file is causing problems on Windows with the x86/arch_x86.h include
 list(FILTER libSources EXCLUDE REGEX ".atomic.h$")
 list(FILTER libSources EXCLUDE REGEX ".atomic.cpp$")
-
-# this is trying to setup C++20 module, but that causes compile failures
 list(FILTER libSources EXCLUDE REGEX ".fmt.cpp$")
 
-# this will preserve hierarchy of sources in a build project
+# Preserve source hierarchy in build project
 source_group(TREE "${SOURCE_DIR}" PREFIX "source" FILES ${libSources})
 
 target_include_directories(${myTargetLib} PUBLIC
-    # public since included in other project files
     "${INCLUDE_DIR}/kram/"
     "${INCLUDE_DIR}/eastl/include/"
     "${INCLUDE_DIR}/vectormath/"
@@ -193,21 +155,22 @@ target_include_directories(${myTargetLib} PRIVATE
     "${INCLUDE_DIR}/tmpfileplus/"
     "${INCLUDE_DIR}/zstd/"
 )
-     
-# only add sources to the library
+
+# Add sources to the library
 target_sources(${myTargetLib} PRIVATE ${libSources})
 
-#-----------------------------------------------------
+# Link liblog for Android
+if (ANDROID)
+    target_link_libraries(${myTargetLib} PUBLIC log zstd miniz lodepng)
+endif()
 
+#-----------------------------------------------------
 if (BUILD_LINUX)
-    # Enable all warnings
     target_compile_options(${myTargetLib} PRIVATE -W -Wall 
         -fno-exceptions -fno-rtti
         -fdata-sections -ffunction-sections
     )
     
-    # Architecture-specific optimizations
-    # Force detection if CMAKE_SYSTEM_PROCESSOR is not set
     if (NOT CMAKE_SYSTEM_PROCESSOR OR CMAKE_SYSTEM_PROCESSOR STREQUAL "")
         execute_process(COMMAND uname -m OUTPUT_VARIABLE CMAKE_SYSTEM_PROCESSOR OUTPUT_STRIP_TRAILING_WHITESPACE)
     endif()
@@ -215,85 +178,59 @@ if (BUILD_LINUX)
     message(STATUS "Detected processor: ${CMAKE_SYSTEM_PROCESSOR}")
     
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
-        # Enable NEON for ARM64 - NEON is mandatory on ARMv8
         message(STATUS "Configuring for ARM64 with NEON")
         target_compile_options(${myTargetLib} PRIVATE -march=armv8-a+simd)
         target_compile_definitions(${myTargetLib} PRIVATE __ARM_NEON=1 __ARM_NEON__=1)
     else()
-        # Enable AVX2/F16C for x86_64
         message(STATUS "Configuring for x86_64 with AVX2")
         target_compile_options(${myTargetLib} PRIVATE -mavx2 -mfma -mf16c)
     endif()
 
-    # this is already done by pch for libkram, but other projects need the force include inherited
-    # force include (public)
     target_compile_options(${myTargetLib} PUBLIC -include KramConfig.h)
 endif()
 
-# note: mac build is all done via Xcode workspace/project now, this cmake build is legacy
 if (BUILD_MAC)
     set_target_properties(${myTargetLib} PROPERTIES
-        # set debug style for apps
         XCODE_ATTRIBUTE_DEBUG_INFORMATION_FORMAT "dwarf-with-dsym"
         XCODE_ATTRIBUTE_ONLY_ACTIVE_ARCH "NO"
     )
 
-    # Enable all warnings
     target_compile_options(${myTargetLib} PRIVATE -W -Wall 
         -fobjc-arc
         -fno-exceptions -fno-rtti
         -fdata-sections -ffunction-sections
     )
     
-    # Architecture-specific optimizations
     if (CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
-        # Enable NEON for ARM64 (Apple Silicon) - NEON is mandatory on ARMv8
         target_compile_options(${myTargetLib} PRIVATE -march=armv8-a+simd)
         target_compile_definitions(${myTargetLib} PRIVATE __ARM_NEON=1 __ARM_NEON__=1)
     else()
-        # Enable AVX2/F16C for x86_64
         target_compile_options(${myTargetLib} PRIVATE -mavx2 -mfma -mf16c)
     endif()
 
-    # this is already done by pch for libkram, but other projects need the force include inherited
-    # force include (public)
     target_compile_options(${myTargetLib} PUBLIC -include KramConfig.h)
 endif()
 
 if (BUILD_WIN)
-    # TODO: switch to add_target_definitions
-
     set_property(TARGET ${myTargetLib} PROPERTY
         MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>"
     )
 
-    # this is already done by pch for libkram, but other projects need the force include inherited
-    # force include (public)
     target_compile_options(${myTargetLib} PUBLIC /FIKramConfig.h)
        
-    # all warnings, AVX2, and multiprocess compiles,
-    # eliminate duplicate strings, embed full path
-    # TODO: -fdata-sections -ffunction-sections
-    target_compile_options(${myTargetLib} PRIVATE  /W3 
+    target_compile_options(${myTargetLib} PRIVATE /W3 
         -march=haswell -mf16c -mfma 
         /GR- /EHs-c-
         /MP /GF /FC
     )
     
-    # fix STL (don't use -D here, will remove)
     target_compile_definitions(${myTargetLib} PRIVATE _ITERATOR_DEBUG_LEVEL=0 _HAS_EXCEPTIONS=0)
-
 endif()
 
-
-
-# This will be force include (-include, /FI) on GCC/clang/VS.
-# Can't seem to ref KramPrefix.pch file.  Goes into cmake_pch.hxx file
 target_precompile_headers(${myTargetLib} PRIVATE
     ${SOURCE_DIR}/kram/KramPrefix.h
 )
 
-# These turns into -D, don't add to the lines
 target_compile_definitions(${myTargetLib}
     PUBLIC
     COMPILE_EASTL=${COMPILE_EASTL}
