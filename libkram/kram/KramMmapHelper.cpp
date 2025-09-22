@@ -10,7 +10,7 @@
 #include <stdio.h>
 #include <sys/stat.h>
 
-#if KRAM_APPLE || KRAM_LINUX
+#if KRAM_APPLE || KRAM_LINUX || KRAM_ANDROID
 #include <sys/mman.h>
 #include <unistd.h>
 #elif KRAM_WIN
