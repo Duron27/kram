@@ -456,7 +456,6 @@ void Perf::addCounter(const char* name, double time, int64_t amount)
 
     // write out the event in micros, default is displayed in ms
     string buf;
-    string buf;
     sprintf(buf, R"({"name":"%s","ph":"C","ts":%.*f,"args":{"v":%ld}},%c)",
             name, timeDigits, time, amount, nl);
     write(buf);
