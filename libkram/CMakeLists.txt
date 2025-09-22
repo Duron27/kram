@@ -2,12 +2,12 @@ cmake_minimum_required(VERSION 3.19.1)
 
 #-----------------------------------------------------
 # Encoder options
-option(ATE "Compile ATE Encoder" ON)
-option(ETCENC "Compile ETC2Comp Encoder" ON)
-option(SQUISH "Compile Squish Encoder" ON)
+option(ATE "Compile ATE Encoder" OFF)
+option(ETCENC "Compile ETC2Comp Encoder" OFF)
+option(SQUISH "Compile Squish Encoder" OFF)
 option(ASTCENC "Compile ASTCenc Encoder" ON)
-option(BCENC "Compile BCenc Encoder" ON)
-option(COMP "Compile Compressonator Encoder" ON)
+option(BCENC "Compile BCenc Encoder" OFF)
+option(COMP "Compile Compressonator Encoder" OFF)
 
 option(EASTL "Compile EASTL" OFF)
 
@@ -116,6 +116,9 @@ file(GLOB_RECURSE libSources CONFIGURE_DEPENDS
 if (BUILD_WIN OR BUILD_LINUX OR ANDROID)
     list(FILTER libSources EXCLUDE REGEX ".*ateencoder.mm$")
     list(FILTER libSources EXCLUDE REGEX ".*ateencoder.h$")
+    list(FILTER libSources EXCLUDE REGEX ".*astcenccli_.*") # Exclude all astcenc CLI files
+    list(FILTER libSources EXCLUDE REGEX ".*rdo_bc_encoder.cpp$") # Exclude BC7 encoder file
+    list(FILTER libSources EXCLUDE REGEX ".*utils.*") # Exclude any utils files if present
 endif()
 
 # Remove files not used
@@ -161,7 +164,8 @@ target_sources(${myTargetLib} PRIVATE ${libSources})
 
 # Link liblog and libtrace for Android
 if (ANDROID)
-    target_link_libraries(${myTargetLib} PUBLIC log)
+    target_link_libraries(${myTargetLib} PUBLIC log android)
+    set_source_files_properties(${SOURCE_DIR}/zstd/zstd.cpp PROPERTIES COMPILE_FLAGS "-Wno-implicit-int-conversion")
 endif()
 
 #-----------------------------------------------------
