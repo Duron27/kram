@@ -159,7 +159,7 @@ Perf* Perf::_instance = new Perf();
 
 thread_local uint32_t gPerfStackDepth = 0;
 
-PerfScope::PerfScope(const char* name_, [[maybe_unused]] int64_t value)
+PerfScope::PerfScope(const char* name_)
     : name(name_), time(currentTimestamp())
 {
     gPerfStackDepth++;
@@ -186,8 +186,10 @@ void PerfScope::close()
 void addPerfCounter(const char* name, int64_t value)
 {
 #if KRAM_ANDROID
+#if __ANDROID_API__ >= 29
     // only int64_t support
     ATrace_setCounter(name, value);
+#endif
 #endif
 
     Perf::instance()->addCounter(name, currentTimestamp(), value);
@@ -455,9 +457,8 @@ void Perf::addCounter(const char* name, double time, int64_t amount)
     // Note: unclear if Perfetto can handle negative values
 
     // write out the event in micros, default is displayed in ms
-    // lld not portable to Win
     string buf;
-    sprintf(buf, R"({"name":"%s","ph":"C","ts":%.*f,"args":{"v":%lld}},%c)",
+    sprintf(buf, R"({"name":"%s","ph":"C","ts":%.*f,"args":{"v":%ld}},%c)",
             name, timeDigits, time, amount, nl);
     write(buf);
 }
