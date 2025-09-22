@@ -161,7 +161,7 @@ target_sources(${myTargetLib} PRIVATE ${libSources})
 
 # Link liblog and libtrace for Android
 if (ANDROID)
-    target_link_libraries(${myTargetLib} PUBLIC log trace zstd miniz lodepng)
+    target_link_libraries(${myTargetLib} PUBLIC log)
 endif()
 
 #-----------------------------------------------------
