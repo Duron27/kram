@@ -526,10 +526,9 @@ static void setThreadAffinity(std::thread::native_handle_type handle, uint32_t t
     CPU_SET(threadIndex, &cpuset);
 
     // convert pthread to pid
-    pid_t pid;
-    pthread_getunique_np(handle, &pid);
+    pid_t pid = gettid();
     success = sched_setaffinity(pid, sizeof(cpu_set_t), &cpuset) == 0;
-
+    
 #elif KRAM_WIN
     // each processor group only has 64 bits
     DWORD_PTR mask = SetThreadAffinityMask(handle, *(const DWORD_PTR*)&affinityMask);
