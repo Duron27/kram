@@ -35,13 +35,18 @@
 #endif
 
 #elif KRAM_ANDROID
-#include <log.h>
+#include <android/log.h>
+#define KRAM_LOG_TAG "Kram"
+#define KLOGI(...) __android_log_print(ANDROID_LOG_INFO, KRAM_LOG_TAG, __VA_ARGS__)
+#define KLOGE(...) __android_log_print(ANDROID_LOG_ERROR, KRAM_LOG_TAG, __VA_ARGS__)
 
 #elif KRAM_APPLE
 #include <cxxabi.h> // demangle
 #include <dlfcn.h> // address to symbol
 #include <execinfo.h>
 #include <os/log.h>
+#else
+#include <log.h>
 #endif
 
 #include "KramFmt.h"
@@ -190,20 +195,7 @@ public:
             // Note: can get Module with a different call if above fails
         }
     }
-
-    // See here on using StackWalk64 to walk up the SEH context.
-    // https://stackoverflow.com/questions/22467604/how-can-you-use-capturestackbacktrace-to-capture-the-exception-stack-not-the-ca
 };
-
-// Check this out
-// https://github.com/vtjnash/dbghelp2
-
-// Also here, cross-platform symbol lookup/demangle
-// handles ASLR on mach-o, but only using relative offsets on the .o file
-// https://dynamorio.org/page_drsyms.html
-
-// https://stackoverflow.com/questions/22467604/how-can-you-use-capturestackbacktrace-to-capture-the-exception-stack-not-the-ca
-// CaptureStackBackTrace().
 
 #else
 
@@ -345,9 +337,8 @@ public:
 
         free(strs);
     }
-
-    // nm is typically used to decode, but that's an executable
 };
+
 #endif
 
 #else
@@ -550,12 +541,6 @@ inline void OutputDebugStringU(LPCSTR lpOutputString, uint32_t len8)
     RaiseException(0x4001000A, 0, 4, args); // DBG_PRINTEXCEPTION_WIDE_C
 
     _freea(strWide);
-
-    // Can't use OutputDebugStringW.
-    // OutputDebugStringW converts the specified string based on the current system
-    // locale information and passes it to OutputDebugStringA to be displayed. As a
-    // result, some Unicode characters may not be displayed correctly.  So above is
-    // what ODSA calls internally but with the action wide string.
 }
 
 #endif
@@ -642,7 +627,7 @@ static const char* getFormatTokens(char tokens[kMaxTokens], const LogMessage& ms
         strlcpy(tokens, "[l] g m\n", kMaxTokens);
     }
 #elif KRAM_ANDROID
-    // Android logcat has level, tag, file/line passed in the mesasge
+    // Android logcat has level, tag, file/line passed in the message
     strlcpy(tokens, "m\n", kMaxTokens);
 #else
     // copy of formatters above
@@ -809,6 +794,7 @@ bool isMessageFiltered(const LogMessage& msg)
 #endif
     return false;
 }
+
 void setMessageFields(LogMessage& msg, char threadName[kMaxThreadName])
 {
     const char* text = msg.msg;
@@ -899,8 +885,6 @@ static int32_t logMessageImpl(const LogMessage& msg)
         fflush(fp);
     }
 #elif KRAM_ANDROID
-    // TODO: move higher up
-    // API 30
     AndroidLogLevel osLogLevel = ANDROID_LOG_ERROR;
     switch (msg.logLevel) {
         case LogLevelDebug:
@@ -909,7 +893,6 @@ static int32_t logMessageImpl(const LogMessage& msg)
         case LogLevelInfo:
             osLogLevel = ANDROID_LOG_INFO;
             break;
-
         case LogLevelWarning:
             osLogLevel = ANDROID_LOG_WARNING;
             break;
@@ -918,19 +901,11 @@ static int32_t logMessageImpl(const LogMessage& msg)
             break;
     }
 
-    if (!__android_log_is_loggable(osLogLevel, msg.group, __android_log_get_minimum_priority())) // will be default level if not set
-        return status;
-
     char tokens[kMaxTokens] = {};
     getFormatTokens(tokens, msg, DebuggerLogcat);
     formatMessage(buffer, msg, tokens);
 
-    // TODO: split string up into multiple logs by /n
-    // this can only write 4K - 80 chars at time, don't use print it's 1023
-    // API 30
-    __android_log_message msg = {
-        LOG_ID_MAIN, msg.file, msg.line, buffer.c_str(), osLogLevel, sizeof(__android_log_message), msg.group};
-    __android_log_write_log_message(msg);
+    __android_log_print(osLogLevel, KRAM_LOG_TAG, "%s", buffer.c_str());
 #else
 
 #if KRAM_APPLE
@@ -958,7 +933,6 @@ static int32_t logMessageImpl(const LogMessage& msg)
             case LogLevelInfo:
                 osLogLevel = OS_LOG_TYPE_INFO;
                 break;
-
             case LogLevelWarning:
                 osLogLevel = OS_LOG_TYPE_ERROR; // no warning level
                 break;
@@ -1000,9 +974,6 @@ int32_t logMessage(const char* group, int32_t logLevel,
     dso = &__dso_handle; // may need to come from call site for the mach_header of .o
     logAddress = __builtin_return_address(0); // or __builtin_frame_address(0))
 #elif KRAM_WIN
-    //
-    // TODO: use SymFromAddr to convert address to mangled symbol, and demangle it
-    // from DbgHelp.dll
     logAddress = _ReturnAddress(); // or _AddressOfReturnAddress()
 #endif
 
@@ -1010,8 +981,6 @@ int32_t logMessage(const char* group, int32_t logLevel,
         group, logLevel,
         file, line, func,
         nullptr, 0.0, // threadname, timestamp
-
-        // must set -no_pie to use __builtin_return_address to turn off ASLR
         dso, logAddress,
         nullptr, false, // msg, msgHasNewline
     };
@@ -1020,7 +989,7 @@ int32_t logMessage(const char* group, int32_t logLevel,
         return 0;
     }
 
-    // convert var ags to a msg
+    // convert var args to a msg
     const char* msg = nullptr;
 
     string str;
@@ -1077,8 +1046,6 @@ int32_t logMessage(const char* group, int32_t logLevel,
     LogMessage logMessage = {
         group, logLevel,
         file, line, func, nullptr, 0.0, // threadName, timestamp
-
-        // must set -no_pie to use __builtin_return_address to turn off ASLR
         dso, logAddress,
         nullptr, false, // msg, msgHasNewline
     };
