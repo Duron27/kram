@@ -1,4 +1,3 @@
-```cmake
 cmake_minimum_required(VERSION 3.19.1 FATAL_ERROR)
 
 #-----------------------------------------------------
@@ -127,4 +126,3 @@ if (BUILD_MAC)
     install(TARGETS kramv BUNDLE DESTINATION ${BIN_DIR})
     install(TARGETS hlslparser RUNTIME DESTINATION ${BIN_DIR})
 endif()
-```
