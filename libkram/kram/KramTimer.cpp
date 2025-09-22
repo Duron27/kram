@@ -14,7 +14,7 @@
 #elif KRAM_APPLE
 #include <mach/mach_time.h>
 #elif KRAM_ANDROID
-#include <trace.h>
+#include <android/trace.h>
 #elif KRAM_LINUX
 #include <time.h> // needs librt.a
 #endif
@@ -48,7 +48,6 @@ static uint64_t queryCounter()
 };
 
 #elif KRAM_APPLE
-
 
 static double queryPeriod()
 {
@@ -87,10 +86,6 @@ static uint64_t queryCounter()
     // But not halting in debugger will skew timings.
     // May want timeouts to use the absolute timer.
     
-    // Really each core has different frequencies with P/E, so want a timer
-    // that is consistent.  Also the frequency can ramp up/down.  Timers
-    // like rdtsc drift when a process goes from one core to another.
-    
     // increment when system sleeps
     // time = mach_continuous_time();
     
@@ -101,6 +96,24 @@ static uint64_t queryCounter()
     // Have gotten burned by these timers, unclear of precision.
     // Tracy says these timers are bad, but uses them.
     // C++11 has std::chrono::high_resolution_clock::now() in <chrono>
+    
+    return time;
+}
+
+#elif KRAM_ANDROID
+
+static double queryPeriod()
+{
+    double period = 1e-9;
+    return period;
+}
+
+static uint64_t queryCounter()
+{
+    timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+
+    uint64_t time = (uint64_t)ts.tv_nsec + ((uint64_t)ts.tv_sec * 1000000000ULL);
     
     return time;
 }
@@ -138,7 +151,7 @@ double currentTimestamp()
 
 // TODO: also look into the Perfetto binary format and library/api.
 // This needs some daemon to flush data to.  Unclear if can route
-//  existing api and timings over to calls?
+// existing api and timings over to calls?
 // https://perfetto.dev/docs/instrumentation/tracing-sdk
 
 // TODO: escape strings, but it's just more work
@@ -146,14 +159,14 @@ Perf* Perf::_instance = new Perf();
 
 thread_local uint32_t gPerfStackDepth = 0;
 
-PerfScope::PerfScope(const char* name_)
+PerfScope::PerfScope(const char* name_, [[maybe_unused]] int64_t value)
     : name(name_), time(currentTimestamp())
 {
     gPerfStackDepth++;
 
 #if KRAM_ANDROID
     // TODO: also ATrace_isEnabled()
-    ATrace_beginSection(name, value);
+    ATrace_beginSection(name);
 #endif
 }
 
@@ -375,7 +388,7 @@ void Perf::addTimer(const char* name, double time, double elapsed)
     if (elapsed <= 0.0)
         return;
 
-    // Catapult timings are suppoed to be in micros.
+    // Catapult timings are supposed to be in micros.
     // Convert seconds to micros (as integer), lose nanos.  Note that
     // Perfetto will convert all values to nanos anyways and lacks a ms format.
     // Raw means nanos, and Seconds is too small of a fraction.
@@ -403,7 +416,7 @@ void Perf::addTimer(const char* name, double time, double elapsed)
     write(buf);
 }
 
-// Can also use begin/end but these aren't a atomic
+// Can also use begin/end but these aren't atomic
 //  R"({"name":"%s","ph":"B","tid":%d,"ts":%.0f},%c)",
 //  R"({"ph":"E","tid":%d,"ts":%.0f},%c)",
 
