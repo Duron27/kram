@@ -159,9 +159,9 @@ target_include_directories(${myTargetLib} PRIVATE
 # Add sources to the library
 target_sources(${myTargetLib} PRIVATE ${libSources})
 
-# Link liblog for Android
+# Link liblog and libtrace for Android
 if (ANDROID)
-    target_link_libraries(${myTargetLib} PUBLIC log zstd miniz lodepng)
+    target_link_libraries(${myTargetLib} PUBLIC log trace zstd miniz lodepng)
 endif()
 
 #-----------------------------------------------------
