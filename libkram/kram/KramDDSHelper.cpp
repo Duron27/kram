@@ -212,12 +212,12 @@ static MyMTLPixelFormat getMetalFormatFromDDS9(const DDS_PIXELFORMAT& ddpf)
                 if (ISBITMASK(0x000000ff, 0x0000ff00, 0x00ff0000, 0xff000000)) {
                     return MyMTLPixelFormatRGBA8Unorm;
                 }
-                
+
                 // ARGB8888 format (common in DDS files) - A=0xff000000, R=0x00ff0000, G=0x0000ff00, B=0x000000ff
                 if (ISBITMASK(0x00ff0000, 0x0000ff00, 0x000000ff, 0xff000000)) {
                     return MyMTLPixelFormatRGBA8Unorm; // Will need swizzling to handle ARGB->RGBA
                 }
-                
+
                 // BGRA8888 format - B=0x0000ff00, G=0x00ff0000, R=0xff000000, A=0x000000ff
                 if (ISBITMASK(0x0000ff00, 0x00ff0000, 0xff000000, 0x000000ff)) {
                     return MyMTLPixelFormatRGBA8Unorm; // Will need swizzling to handle BGRA->RGBA
@@ -226,6 +226,18 @@ static MyMTLPixelFormat getMetalFormatFromDDS9(const DDS_PIXELFORMAT& ddpf)
                 if (ISBITMASK(0xffffffff, 0, 0, 0)) {
                     // Only 32-bit color channel format in D3D9 was R32F
                     return MyMTLPixelFormatR32Float; // D3DX writes this out as a FourCC of 114
+                }
+                break;
+
+            case 24:
+                // RGB888 format (no alpha) - R=0x00ff0000, G=0x0000ff00, B=0x000000ff
+                if (ISBITMASK(0x00ff0000, 0x0000ff00, 0x000000ff, 0)) {
+                    return MyMTLPixelFormatRGB8Unorm_internal; // Will be converted to RGBA8 internally
+                }
+
+                // BGR888 format - B=0x000000ff, G=0x0000ff00, R=0x00ff0000
+                if (ISBITMASK(0x000000ff, 0x0000ff00, 0x00ff0000, 0)) {
+                    return MyMTLPixelFormatRGB8Unorm_internal; // Will be converted to RGBA8 internally
                 }
                 break;
 
@@ -509,21 +521,55 @@ bool DDSHelper::load(const uint8_t* data, size_t dataSize, KTXImage& image, bool
         uint8_t* dstImageData = image.imageData().data();
         const uint8_t* srcImageData = data + mipDataOffset;
 
+        // RGB888 needs special handling to convert 3-byte pixels to 4-byte RGBA
+        bool isRGB888 = (pixelFormat == MyMTLPixelFormatRGB8Unorm_internal);
+
         size_t srcOffset = 0;
         for (uint32_t chunkNum = 0; chunkNum < image.totalChunks(); ++chunkNum) {
             for (uint32_t mipNum = 0; mipNum < image.mipCount(); ++mipNum) {
-                // memcpy from src to dst
                 size_t dstOffset = image.chunkOffset(mipNum, chunkNum);
                 size_t mipLength = image.mipLevels[mipNum].length;
 
-                if ((mipDataOffset + srcOffset + mipLength) > dataSize) {
-                    KLOGE("kram", "source image data incomplete");
-                    return false;
+                if (isRGB888) {
+                    // Convert RGB888 (3 bytes/pixel) to RGBA8888 (4 bytes/pixel)
+                    uint32_t mipWidth, mipHeight, mipDepth;
+                    image.mipDimensions(mipNum, mipWidth, mipHeight, mipDepth);
+                    uint32_t pixelCount = mipWidth * mipHeight * mipDepth;
+
+                    // Source data is 3 bytes per pixel, destination is 4 bytes per pixel
+                    size_t srcMipLength = pixelCount * 3;
+
+                    if ((mipDataOffset + srcOffset + srcMipLength) > dataSize) {
+                        KLOGE("kram", "source RGB888 image data incomplete");
+                        return false;
+                    }
+
+                    // Expand RGB to RGBA with alpha = 255
+                    const uint8_t* srcPixel = srcImageData + srcOffset;
+                    uint8_t* dstPixel = dstImageData + dstOffset;
+
+                    for (uint32_t i = 0; i < pixelCount; ++i) {
+                        dstPixel[0] = srcPixel[0]; // R
+                        dstPixel[1] = srcPixel[1]; // G
+                        dstPixel[2] = srcPixel[2]; // B
+                        dstPixel[3] = 255;         // A (opaque)
+
+                        srcPixel += 3;
+                        dstPixel += 4;
+                    }
+
+                    srcOffset += srcMipLength;
+                } else {
+                    // Standard path for other formats - direct memcpy
+                    if ((mipDataOffset + srcOffset + mipLength) > dataSize) {
+                        KLOGE("kram", "source image data incomplete");
+                        return false;
+                    }
+
+                    memcpy(dstImageData + dstOffset, srcImageData + srcOffset, mipLength);
+
+                    srcOffset += mipLength;
                 }
-
-                memcpy(dstImageData + dstOffset, srcImageData + srcOffset, mipLength);
-
-                srcOffset += mipLength;
             }
         }
     }
