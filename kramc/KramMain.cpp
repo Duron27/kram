@@ -289,7 +289,7 @@ void checkSimdSupport()
         exit(1);
     }
         
-#elif KRAM_LINUX // || KRAM_MAC
+#elif KRAM_LINUX || KRAM_ANDROID // || KRAM_MAC
         
     // This should apply to all clang and gcc builds.  So may want
     // to use on all platforms.

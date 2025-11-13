@@ -14,7 +14,8 @@
 #elif KRAM_APPLE
 #include <mach/mach_time.h>
 #elif KRAM_ANDROID
-#include <trace.h>
+#include <android/trace.h>
+#include <time.h>
 #elif KRAM_LINUX
 #include <time.h> // needs librt.a
 #endif
@@ -105,7 +106,7 @@ static uint64_t queryCounter()
     return time;
 }
 
-#elif KRAM_LINUX
+#elif KRAM_LINUX || KRAM_ANDROID
 
 static double queryPeriod()
 {
@@ -153,7 +154,7 @@ PerfScope::PerfScope(const char* name_)
 
 #if KRAM_ANDROID
     // TODO: also ATrace_isEnabled()
-    ATrace_beginSection(name, value);
+    ATrace_beginSection(name);
 #endif
 }
 

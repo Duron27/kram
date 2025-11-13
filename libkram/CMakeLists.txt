@@ -59,7 +59,13 @@ set(myTargetLib libkram)
 
 # **** This will create libkram.a or .so or kram.lib depending on platform.
 # can also use OBJECT or SHARED, object cuts compile time
-add_library(${myTargetLib} STATIC)
+if (ANDROID)
+    add_library(${myTargetLib} STATIC)
+#    add_library(${myTargetLib} SHARED)
+    set_target_properties(${myTargetLib} PROPERTIES POSITION_INDEPENDENT_CODE TRUE)
+else()
+    add_library(${myTargetLib} STATIC)
+endif()
 
 if (CMAKE_BUILD_TYPE STREQUAL "DEBUG")
     set(DEBUG 1)
@@ -193,11 +199,15 @@ target_include_directories(${myTargetLib} PRIVATE
     "${INCLUDE_DIR}/tmpfileplus/"
     "${INCLUDE_DIR}/zstd/"
 )
-     
+
 # only add sources to the library
 target_sources(${myTargetLib} PRIVATE ${libSources})
 
 #-----------------------------------------------------
+
+if(ANDROID)
+    target_link_libraries(${myTargetLib} PUBLIC log android)
+endif()
 
 if (BUILD_LINUX)
     # Enable all warnings

@@ -35,7 +35,7 @@
 #endif
 
 #elif KRAM_ANDROID
-#include <log.h>
+#include <android/log.h>
 
 #elif KRAM_APPLE
 #include <cxxabi.h> // demangle
@@ -901,7 +901,8 @@ static int32_t logMessageImpl(const LogMessage& msg)
 #elif KRAM_ANDROID
     // TODO: move higher up
     // API 30
-    AndroidLogLevel osLogLevel = ANDROID_LOG_ERROR;
+    // Use the correct type from android/log.h
+    android_LogPriority osLogLevel = ANDROID_LOG_ERROR;
     switch (msg.logLevel) {
         case LogLevelDebug:
             osLogLevel = ANDROID_LOG_DEBUG;
@@ -909,28 +910,36 @@ static int32_t logMessageImpl(const LogMessage& msg)
         case LogLevelInfo:
             osLogLevel = ANDROID_LOG_INFO;
             break;
-
         case LogLevelWarning:
-            osLogLevel = ANDROID_LOG_WARNING;
+            osLogLevel = ANDROID_LOG_WARN;
             break;
         case LogLevelError:
             osLogLevel = ANDROID_LOG_ERROR;
             break;
+        default:
+            osLogLevel = ANDROID_LOG_ERROR;
+            break;
     }
 
-    if (!__android_log_is_loggable(osLogLevel, msg.group, __android_log_get_minimum_priority())) // will be default level if not set
+    if (!__android_log_is_loggable(osLogLevel, msg.group, __android_log_get_minimum_priority()))
         return status;
 
     char tokens[kMaxTokens] = {};
     getFormatTokens(tokens, msg, DebuggerLogcat);
     formatMessage(buffer, msg, tokens);
 
-    // TODO: split string up into multiple logs by /n
-    // this can only write 4K - 80 chars at time, don't use print it's 1023
-    // API 30
-    __android_log_message msg = {
-        LOG_ID_MAIN, msg.file, msg.line, buffer.c_str(), osLogLevel, sizeof(__android_log_message), msg.group};
-    __android_log_write_log_message(msg);
+    // Create the log message structure with correct field names and order
+    __android_log_message android_log_msg = {
+        sizeof(__android_log_message),  // struct_size
+        LOG_ID_MAIN,                    // buffer_id
+        osLogLevel,                     // priority
+        msg.group,                      // tag
+        msg.file,                       // file
+        static_cast<uint32_t>(msg.line), // line (with cast)
+        buffer.c_str()                  // message
+    };
+
+    __android_log_write_log_message(&android_log_msg);
 #else
 
 #if KRAM_APPLE

@@ -23,6 +23,7 @@
 #include <processthreadsapi.h>
 #elif KRAM_ANDROID
 #include <sys/resource.h>
+#include <pthread.h>
 #else
 #include <pthread.h>
 #endif
@@ -519,16 +520,14 @@ static void setThreadAffinity(std::thread::native_handle_type handle, uint32_t t
 #if KRAM_APPLE
     // no support, don't use thread_policy_set it's not on M1 and just a hint
     success = true;
-
-#elif KRAM_ANDROID
+    #elif KRAM_ANDROID
     cpu_set_t cpuset;
     CPU_ZERO(&cpuset);
     CPU_SET(threadIndex, &cpuset);
 
-    // convert pthread to pid
-    pid_t pid;
-    pthread_getunique_np(handle, &pid);
-    success = sched_setaffinity(pid, sizeof(cpu_set_t), &cpuset) == 0;
+    // Get the thread ID (TID) using Android's function
+    pid_t tid = pthread_gettid_np(handle);
+    success = sched_setaffinity(tid, sizeof(cpu_set_t), &cpuset) == 0;
 
 #elif KRAM_WIN
     // each processor group only has 64 bits

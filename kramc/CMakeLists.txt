@@ -31,11 +31,16 @@ if (BUILD_LINUX)
     endif()
 
     # librt is for clock_gettime, pthread for threading
-    target_link_libraries(${myTargetApp} PUBLIC 
-        libkram 
-        rt
-        pthread)
-
+    if (ANDROID)
+        # Android: pthread and rt are included in libc, no need to link separately
+        target_link_libraries(${myTargetApp} PUBLIC libkram log)
+    else()
+        # Regular Linux: need to link pthread and rt explicitly
+        target_link_libraries(${myTargetApp} PUBLIC
+            libkram
+            rt
+            pthread)
+    endif()
 endif()
 
 if (BUILD_MAC)
