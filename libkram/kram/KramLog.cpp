@@ -898,7 +898,8 @@ static int32_t logMessageImpl(const LogMessage& msg)
         // if heavy logging, then could delay fflush
         fflush(fp);
     }
-#elif KRAM_ANDROID
+
+    #elif KRAM_ANDROID
     // TODO: move higher up
     // API 30
     // Use the correct type from android/log.h
@@ -921,12 +922,14 @@ static int32_t logMessageImpl(const LogMessage& msg)
             break;
     }
 
-    if (!__android_log_is_loggable(osLogLevel, msg.group, __android_log_get_minimum_priority()))
-        return status;
-
     char tokens[kMaxTokens] = {};
     getFormatTokens(tokens, msg, DebuggerLogcat);
     formatMessage(buffer, msg, tokens);
+
+    #if __ANDROID_API__ >= 30
+    // Use the newer API for Android 30 and above
+    if (!__android_log_is_loggable(osLogLevel, msg.group, __android_log_get_minimum_priority()))
+        return status;
 
     // Create the log message structure with correct field names and order
     __android_log_message android_log_msg = {
@@ -940,7 +943,26 @@ static int32_t logMessageImpl(const LogMessage& msg)
     };
 
     __android_log_write_log_message(&android_log_msg);
-#else
+    #else
+    // Fallback for older Android versions (pre-API 30)
+    // Use the traditional logging functions
+    switch (osLogLevel) {
+        case ANDROID_LOG_DEBUG:
+            __android_log_write(ANDROID_LOG_DEBUG, msg.group, buffer.c_str());
+            break;
+        case ANDROID_LOG_INFO:
+            __android_log_write(ANDROID_LOG_INFO, msg.group, buffer.c_str());
+            break;
+        case ANDROID_LOG_WARN:
+            __android_log_write(ANDROID_LOG_WARN, msg.group, buffer.c_str());
+            break;
+        case ANDROID_LOG_ERROR:
+        default:
+            __android_log_write(ANDROID_LOG_ERROR, msg.group, buffer.c_str());
+            break;
+    }
+    #endif
+    #else
 
 #if KRAM_APPLE
     // test os_log

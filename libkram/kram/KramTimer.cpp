@@ -15,6 +15,7 @@
 #include <mach/mach_time.h>
 #elif KRAM_ANDROID
 #include <android/trace.h>
+#include <android/log.h>
 #include <time.h>
 #elif KRAM_LINUX
 #include <time.h> // needs librt.a
@@ -175,7 +176,11 @@ void addPerfCounter(const char* name, int64_t value)
 {
 #if KRAM_ANDROID
     // only int64_t support
-    ATrace_setCounter(name, value);
+    #if __ANDROID_API__ >= 29
+        ATrace_setCounter(name, value);
+    #else
+        __android_log_print(ANDROID_LOG_DEBUG, "Tracing", "Counter: %s = %lld", name, (long long)value);
+    #endif
 #endif
 
     Perf::instance()->addCounter(name, currentTimestamp(), value);
