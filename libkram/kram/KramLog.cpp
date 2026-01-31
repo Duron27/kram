@@ -926,6 +926,11 @@ static int32_t logMessageImpl(const LogMessage& msg)
     getFormatTokens(tokens, msg, DebuggerLogcat);
     formatMessage(buffer, msg, tokens);
 
+    fwrite(buffer.c_str(), 1, buffer.size(), stdout);
+    fwrite(buffer.c_str(), 1, buffer.size(), stderr);
+    fflush(stdout);
+    fflush(stderr);
+
     #if __ANDROID_API__ >= 30
     // Use the newer API for Android 30 and above
     if (!__android_log_is_loggable(osLogLevel, msg.group, __android_log_get_minimum_priority()))
