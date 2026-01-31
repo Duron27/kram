@@ -207,6 +207,11 @@ target_sources(${myTargetLib} PRIVATE ${libSources})
 
 if(ANDROID)
     target_link_libraries(${myTargetLib} PUBLIC log android)
+	# Only use if building SHARED library
+#	target_compile_options(${myTargetLib} PRIVATE -W -Wall 
+#    	-fvisibility=hidden
+#        -fvisibility-inlines-hidden
+    )
 endif()
 
 if (BUILD_LINUX)
