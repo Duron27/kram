@@ -211,7 +211,7 @@ if(ANDROID)
 #	target_compile_options(${myTargetLib} PRIVATE -W -Wall 
 #    	-fvisibility=hidden
 #        -fvisibility-inlines-hidden
-    )
+#    )
 endif()
 
 if (BUILD_LINUX)
